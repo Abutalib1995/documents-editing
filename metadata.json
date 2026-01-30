@@ -1,0 +1,5 @@
+{
+  "name": "Media Toolkit Pro",
+  "description": "A versatile web application to convert, merge, and edit PDF and JPG files. Features include PDF-to-JPG, JPG-to-PDF, file merging, and AI-powered background removal for photos.",
+  "requestFramePermissions": []
+}

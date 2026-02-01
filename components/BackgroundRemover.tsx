@@ -1,104 +1,118 @@
-import React, { useState } from 'react';
-import { TOOLS } from '../constants';
-import { Tool } from '../types';
-import FileUploader from './FileUploader';
-import LoadingSpinner from './LoadingSpinner';
-import { fileToBase64 } from '../utils/fileUtils';
-import { removeBackground } from '../services/geminiService';
+import React, { useMemo, useState } from "react";
 
-const toolInfo = TOOLS.find(t => t.id === Tool.REMOVE_BACKGROUND)!;
+const API_URL = "https://bgremover-backend-5zpy.onrender.com/api/v1/bg-remove";
 
 export default function BackgroundRemover() {
-    const [originalFile, setOriginalFile] = useState<File | null>(null);
-    const [originalUrl, setOriginalUrl] = useState<string | null>(null);
-    const [resultUrl, setResultUrl] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [outputUrl, setOutputUrl] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
-    const handleFileSelected = (files: File[]) => {
-        if (files.length > 0) {
-            const file = files[0];
-            setOriginalFile(file);
-            setOriginalUrl(URL.createObjectURL(file));
-            setResultUrl(null);
-            setError(null);
-            processImage(file);
-        }
-    };
+  const isValidFile = useMemo(() => {
+    if (!file) return false;
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    return allowed.includes(file.type);
+  }, [file]);
 
-    const processImage = async (file: File) => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const base64Image = await fileToBase64(file);
-            const resultBase64 = await removeBackground(base64Image, file.type);
-            setResultUrl(`data:image/png;base64,${resultBase64}`);
-        } catch (e) {
-            console.error(e);
-            const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
-            setError(`AI processing failed. ${errorMessage}. Please try again or use a different image.`);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  const onSelectFile = (f: File | null) => {
+    setError("");
+    setOutputUrl("");
+    setFile(f);
 
-    const handleDownload = () => {
-        if (!resultUrl || !originalFile) return;
-        const link = document.createElement('a');
-        link.href = resultUrl;
-        const name = originalFile.name.substring(0, originalFile.name.lastIndexOf('.')) || originalFile.name;
-        link.download = `${name}_no_bg.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-    
-    return (
-        <div>
-            <h2 className="text-3xl font-bold mb-2 text-white">{toolInfo.name}</h2>
-            <p className="text-gray-400 mb-6">{toolInfo.description}</p>
+    if (!f) {
+      setPreviewUrl("");
+      return;
+    }
+    setPreviewUrl(URL.createObjectURL(f));
+  };
 
-            {!originalFile && (
-                <FileUploader onFilesSelected={handleFileSelected} accept="image/jpeg,image/png,image/webp" title="Upload an Image" />
-            )}
+  const handleRemoveBackground = async () => {
+    try {
+      setError("");
 
-            {originalUrl && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                    <div className="text-center">
-                        <h3 className="text-lg font-semibold mb-2 text-gray-300">Original</h3>
-                        <img src={originalUrl} alt="Original" className="max-w-full mx-auto rounded-lg shadow-lg" />
-                    </div>
-                    <div className="text-center">
-                        <h3 className="text-lg font-semibold mb-2 text-gray-300">Result</h3>
-                        <div className="relative aspect-square flex items-center justify-center bg-gray-800 rounded-lg shadow-lg" style={{backgroundImage: 'repeating-conic-gradient(#374151 0% 25%, transparent 0% 50%)', backgroundSize: '16px 16px'}}>
-                            {isLoading && <div className="flex flex-col items-center"><LoadingSpinner /><p className="mt-2 text-sm">AI is thinking...</p></div>}
-                            {error && <div className="text-red-400 p-4">{error}</div>}
-                            {resultUrl && <img src={resultUrl} alt="Background removed" className="max-w-full max-h-full mx-auto" />}
-                        </div>
-                    </div>
-                </div>
-            )}
+      if (!file) {
+        setError("Please select an image.");
+        return;
+      }
+      if (!isValidFile) {
+        setError("Only JPG / PNG / WEBP supported.");
+        return;
+      }
 
-            {resultUrl && !isLoading && (
-                 <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-4">
-                    <button
-                        onClick={handleDownload}
-                        className="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-500 transition-colors"
-                    >
-                        Download Result (.png)
-                    </button>
-                    <button
-                        onClick={() => {
-                            setOriginalFile(null);
-                            setOriginalUrl(null);
-                            setResultUrl(null);
-                        }}
-                        className="bg-gray-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-500 transition-colors"
-                    >
-                        Process Another Image
-                    </button>
-                </div>
-            )}
+      setLoading(true);
+      setOutputUrl("");
+
+      const form = new FormData();
+      form.append("file", file);
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: form,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Request failed");
+      }
+
+      const data = await res.json();
+
+      if (!data?.output_url) {
+        throw new Error("Invalid API response.");
+      }
+
+      setOutputUrl(data.output_url);
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-indigo-400 mb-2">Background Remover</h2>
+        <p className="text-gray-300">
+          Upload an image and remove background automatically (server-side).
+        </p>
+      </div>
+
+      <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
+        <div className="flex flex-col md:flex-row gap-4 md:items-center">
+          <input
+            type="file"
+            accept="image/*"
+            className="block w-full text-sm text-gray-300
+                       file:mr-4 file:py-2 file:px-4
+                       file:rounded-lg file:border-0
+                       file:text-sm file:font-semibold
+                       file:bg-indigo-600 file:text-white
+                       hover:file:bg-indigo-500"
+            onChange={(e) => onSelectFile(e.target.files?.[0] || null)}
+          />
+
+          <button
+            onClick={handleRemoveBackground}
+            disabled={loading || !file}
+            className={`px-5 py-2 rounded-lg font-semibold transition ${
+              loading || !file
+                ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                : "bg-indigo-600 hover:bg-indigo-500 text-white"
+            }`}
+          >
+            {loading ? "Processing..." : "Remove Background"}
+          </button>
         </div>
-    );
-}
+
+        {error && (
+          <div className="mt-4 text-red-400 bg-red-900/20 border border-red-800 rounded-lg p-3">
+            {error}
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-6 mt-6">
+          {/* Input Preview */}
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
+            <div

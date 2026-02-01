@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 
-const API_URL = "https://bgremover-backend-5zpy.onrender.com/api/v1/bg-remove";
+const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/v1/bg-remove`;
+
 
 export default function BackgroundRemover() {
   const [file, setFile] = useState<File | null>(null);

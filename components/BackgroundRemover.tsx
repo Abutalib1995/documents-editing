@@ -11,8 +11,7 @@ export default function BackgroundRemover() {
 
   const isValidFile = useMemo(() => {
     if (!file) return false;
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    return allowed.includes(file.type);
+    return ["image/jpeg", "image/png", "image/webp"].includes(file.type);
   }, [file]);
 
   const onSelectFile = (f: File | null) => {
@@ -24,6 +23,7 @@ export default function BackgroundRemover() {
       setPreviewUrl("");
       return;
     }
+
     setPreviewUrl(URL.createObjectURL(f));
   };
 
@@ -73,7 +73,9 @@ export default function BackgroundRemover() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-indigo-400 mb-2">Background Remover</h2>
+        <h2 className="text-2xl font-bold text-indigo-400 mb-2">
+          Background Remover
+        </h2>
         <p className="text-gray-300">
           Upload an image and remove background automatically (server-side).
         </p>
@@ -85,11 +87,11 @@ export default function BackgroundRemover() {
             type="file"
             accept="image/*"
             className="block w-full text-sm text-gray-300
-                       file:mr-4 file:py-2 file:px-4
-                       file:rounded-lg file:border-0
-                       file:text-sm file:font-semibold
-                       file:bg-indigo-600 file:text-white
-                       hover:file:bg-indigo-500"
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-lg file:border-0
+              file:text-sm file:font-semibold
+              file:bg-indigo-600 file:text-white
+              hover:file:bg-indigo-500"
             onChange={(e) => onSelectFile(e.target.files?.[0] || null)}
           />
 
@@ -113,6 +115,47 @@ export default function BackgroundRemover() {
         )}
 
         <div className="grid md:grid-cols-2 gap-6 mt-6">
-          {/* Input Preview */}
           <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
-            <div
+            <div className="text-sm text-gray-400 mb-2">Input Preview</div>
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt="preview"
+                className="rounded-lg max-h-[360px] object-contain w-full"
+              />
+            ) : (
+              <div className="text-gray-500 text-sm">No image selected.</div>
+            )}
+          </div>
+
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
+            <div className="text-sm text-gray-400 mb-2">Output PNG</div>
+
+            {outputUrl ? (
+              <>
+                <img
+                  src={outputUrl}
+                  alt="output"
+                  className="rounded-lg max-h-[360px] object-contain w-full"
+                />
+
+                <a
+                  href={outputUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block mt-4 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold"
+                >
+                  Download PNG
+                </a>
+              </>
+            ) : (
+              <div className="text-gray-500 text-sm">
+                Output will appear here after processing.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
